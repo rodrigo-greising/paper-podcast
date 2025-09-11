@@ -14,14 +14,24 @@ logger = get_logger(__name__)
 
 def _concat_segments(dir_path: Path) -> AudioSegment:
 	segments = []
+	total_input_duration = 0
 	for wav in sorted(dir_path.glob("*.aiff")):
-		segments.append(AudioSegment.from_file(wav))
+		segment = AudioSegment.from_file(wav)
+		segments.append(segment)
+		total_input_duration += len(segment)
+	
 	if not segments:
+		logger.info(f"No audio files found in {dir_path}")
 		return AudioSegment.silent(duration=500)
+	
+	logger.info(f"Found {len(segments)} audio files in {dir_path}, total duration: {total_input_duration/1000:.2f}s")
+	
 	out = segments[0]
 	for s in segments[1:]:
 		out += AudioSegment.silent(duration=200)  # short gap
 		out += s
+	
+	logger.info(f"Concatenated {dir_path.name}: {len(out)/1000:.2f}s (including gaps)")
 	return out
 
 
@@ -32,9 +42,15 @@ def assemble_run(settings: Settings, run_id: str) -> None:
 	final_dir.mkdir(parents=True, exist_ok=True)
 
 	final = AudioSegment.silent(duration=1000)
-	for cluster_dir in sorted(audio_path.glob("cluster_*")):
+	cluster_dirs = sorted(audio_path.glob("cluster_*"))
+	logger.info(f"Processing {len(cluster_dirs)} cluster directories")
+	
+	for cluster_dir in cluster_dirs:
 		seg = _concat_segments(cluster_dir)
 		final += seg
+
+	final_duration_seconds = len(final) / 1000
+	logger.info(f"Final episode duration: {final_duration_seconds:.2f}s ({final_duration_seconds/60:.1f} minutes)")
 
 	mp3_path = final_dir / "episode.mp3"
 	final.export(mp3_path, format="mp3", bitrate="192k")
@@ -42,7 +58,7 @@ def assemble_run(settings: Settings, run_id: str) -> None:
 
 	readme = final_dir / "README.md"
 	readme.write_text(
-		f"# Episode {run_id}\n\nGenerated with Paper Podcast pipeline.\n\nAudio: {mp3_path.name}\n",
+		f"# Episode {run_id}\n\nGenerated with Paper Podcast pipeline.\n\nAudio: {mp3_path.name}\nDuration: {final_duration_seconds:.2f}s ({final_duration_seconds/60:.1f} minutes)\n",
 		encoding="utf-8",
 	)
 	logger.info("Assembly complete")
