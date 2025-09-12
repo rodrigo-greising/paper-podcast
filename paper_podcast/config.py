@@ -8,6 +8,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Get the project root directory (parent of the paper_podcast package)
+_PROJECT_ROOT = Path(__file__).parent.parent
+
 
 @dataclass
 class HostPersona:
@@ -19,8 +22,8 @@ class HostPersona:
 @dataclass
 class Settings:
 	# Core
-	data_dir: Path = Path(os.getenv("PP_DATA_DIR", "/Users/grimoire/paper-podcast/data"))
-	assets_dir: Path = Path(os.getenv("PP_ASSETS_DIR", "/Users/grimoire/paper-podcast/data/assets"))
+	data_dir: Path = Path(os.getenv("PP_DATA_DIR")) if os.getenv("PP_DATA_DIR") else _PROJECT_ROOT / "data"
+	assets_dir: Path = Path(os.getenv("PP_ASSETS_DIR")) if os.getenv("PP_ASSETS_DIR") else _PROJECT_ROOT / "data" / "assets"
 	field_category: str = os.getenv("PP_FIELD", "cs.AI")
 
 	# OpenAI
