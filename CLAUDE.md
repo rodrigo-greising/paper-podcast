@@ -27,7 +27,8 @@ pip install -r requirements.txt
 ### Development
 - **Python module execution**: `python -m paper_podcast.cli [command]`
 - **Dependencies**: Install via `pip install -r requirements.txt`
-- No formal linting/testing commands configured (empty tests/ directory)
+- **Testing**: `pytest` (basic tests in `tests/` directory)
+- No formal linting commands configured
 
 ## Architecture
 
@@ -37,7 +38,7 @@ This is a 7-stage podcast generation pipeline:
 1. **Ingest** (`ingest/arxiv_ingest.py`) - Fetches arXiv papers by field (default: cs.AI)
 2. **Extract** (`extract/ar5iv_extract.py`) - Processes papers via ar5iv HTML, extracts text and figures
 3. **Embed** (`embed/embeddings.py`) - Creates embeddings using OpenAI's text-embedding-3-small
-4. **Cluster** (`cluster/topics.py`) - Groups papers by topic using KMeans clustering
+4. **Cluster** (`cluster/topics.py`) - Groups papers by topic using UMAP dimensionality reduction and HDBSCAN clustering (with KMeans fallback)
 5. **Generate** (`generate/scripts.py`) - Creates podcast dialogue using OpenAI chat with two personas
 6. **TTS** (`tts/say_tts.py`) - Converts text to speech using Kokoro TTS with high-quality neural voices
 7. **Assemble** (`assembly/assemble.py`) - Combines audio segments into final MP3
@@ -47,6 +48,7 @@ This is a 7-stage podcast generation pipeline:
 - Required: `OPENAI_API_KEY`
 - Key optional settings: `PP_FIELD`, `PP_MAX_PAPERS`, `PP_MIN_PER_SECTION`
 - Host personas configurable via `PP_HOST1_VOICE`/`PP_HOST2_VOICE` environment variables (Kokoro TTS voice names)
+- Langfuse observability: Optional `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST` for OpenAI call tracing
 
 ### Data Organization
 - **Input**: Papers stored in `data/papers/<run_id>/`
@@ -58,7 +60,7 @@ This is a 7-stage podcast generation pipeline:
 Built with Typer, main commands mirror pipeline stages. Entry point via `scripts/paper-podcast` bash wrapper that activates venv and runs `python -m paper_podcast.cli`.
 
 ### Dependencies
-Python-only project with scientific computing stack (numpy, pandas, scikit-learn) plus OpenAI API, audio processing (pydub, ffmpeg-python), Kokoro TTS for speech synthesis, and web scraping (httpx, beautifulsoup4).
+Python-only project with scientific computing stack (numpy, pandas, scikit-learn) plus OpenAI API, audio processing (pydub, ffmpeg-python), Kokoro TTS for speech synthesis, web scraping (httpx, beautifulsoup4), advanced clustering (UMAP, HDBSCAN), and optional observability (Langfuse).
 
 ### TTS System
 - Uses **Kokoro TTS** for high-quality neural speech synthesis

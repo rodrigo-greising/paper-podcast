@@ -29,7 +29,7 @@ class Settings:
 	# OpenAI
 	openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
 	openai_embedding_model: str = os.getenv("PP_EMBED_MODEL", "text-embedding-3-small")
-	openai_chat_model: str = os.getenv("PP_CHAT_MODEL", "gpt-4o-mini")
+	openai_chat_model: str = os.getenv("PP_CHAT_MODEL", "gpt-5")
 
 	# Ingest
 	max_papers_per_run: int = int(os.getenv("PP_MAX_PAPERS", "100"))
