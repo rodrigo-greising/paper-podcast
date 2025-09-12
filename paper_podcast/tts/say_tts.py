@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+import subprocess
+import tempfile
 from pathlib import Path
 from typing import List, Tuple
 
@@ -36,6 +38,32 @@ def _voice_for_speaker(settings: Settings, speaker: str) -> str:
 	return s1.voice
 
 
+def _synthesize_with_kokoro(text: str, voice: str, output_path: Path, assets_dir: Path) -> None:
+	"""Synthesize speech using Kokoro TTS."""
+	with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as tmp_file:
+		tmp_file.write(text)
+		tmp_file.flush()
+		
+		model_path = assets_dir / "kokoro_models" / "kokoro-v1.0.onnx"
+		voices_path = assets_dir / "kokoro_models" / "voices-v1.0.bin"
+		
+		try:
+			result = subprocess.run([
+				"kokoro-tts", 
+				tmp_file.name, 
+				str(output_path),
+				"--voice", voice,
+				"--model", str(model_path),
+				"--voices", str(voices_path)
+			], check=True, capture_output=True, text=True)
+		except subprocess.CalledProcessError as e:
+			logger.error(f"Kokoro TTS stdout: {e.stdout}")
+			logger.error(f"Kokoro TTS stderr: {e.stderr}")
+			raise
+		finally:
+			Path(tmp_file.name).unlink(missing_ok=True)
+
+
 def tts_run(settings: Settings, run_id: str) -> None:
 	run_path = run_dir(settings.data_dir, run_id)
 	scripts_path = run_path / "scripts"
@@ -56,26 +84,28 @@ def tts_run(settings: Settings, run_id: str) -> None:
 		
 		for idx, (speaker, line) in enumerate(pairs):
 			voice = _voice_for_speaker(settings, speaker)
-			wav = seg_dir / f"{idx:04d}_{speaker.replace(' ', '_')}.aiff"
-			if settings.use_macos_say:
-				# Use macOS say for quick local TTS
-				import subprocess
-				subprocess.run(["say", "-v", voice, "-o", str(wav), line], check=True)
+			wav = seg_dir / f"{idx:04d}_{speaker.replace(' ', '_')}.wav"
 			
-			# Check if the audio file was created and get its duration
-			if wav.exists():
-				try:
-					audio = AudioSegment.from_file(wav)
-					duration_ms = len(audio)
-					cluster_duration_ms += duration_ms
-					total_duration_ms += duration_ms
-					total_files += 1
-					logger.info(f"Synthesized {wav} ({duration_ms/1000:.2f}s)")
-				except Exception as e:
-					logger.warning(f"Could not read audio duration for {wav}: {e}")
-					logger.info(f"Synthesized {wav}")
-			else:
-				logger.warning(f"Audio file not created: {wav}")
+			try:
+				_synthesize_with_kokoro(line, voice, wav, settings.assets_dir)
+				
+				# Check if the audio file was created and get its duration
+				if wav.exists():
+					try:
+						audio = AudioSegment.from_file(wav)
+						duration_ms = len(audio)
+						cluster_duration_ms += duration_ms
+						total_duration_ms += duration_ms
+						total_files += 1
+						logger.info(f"Synthesized {wav} ({duration_ms/1000:.2f}s)")
+					except Exception as e:
+						logger.warning(f"Could not read audio duration for {wav}: {e}")
+						logger.info(f"Synthesized {wav}")
+				else:
+					logger.warning(f"Audio file not created: {wav}")
+			except subprocess.CalledProcessError as e:
+				logger.error(f"Kokoro TTS failed for {speaker}: {e}")
+				continue
 		
 		logger.info(f"Cluster {script_file.stem}: {cluster_duration_ms/1000:.2f}s total from {len(pairs)} segments")
 

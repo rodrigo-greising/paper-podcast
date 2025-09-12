@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 def _concat_segments(dir_path: Path) -> AudioSegment:
 	segments = []
 	total_input_duration = 0
-	for wav in sorted(dir_path.glob("*.aiff")):
+	for wav in sorted(dir_path.glob("*.wav")):
 		segment = AudioSegment.from_file(wav)
 		segments.append(segment)
 		total_input_duration += len(segment)

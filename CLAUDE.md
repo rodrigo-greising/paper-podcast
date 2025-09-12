@@ -39,23 +39,30 @@ This is a 7-stage podcast generation pipeline:
 3. **Embed** (`embed/embeddings.py`) - Creates embeddings using OpenAI's text-embedding-3-small
 4. **Cluster** (`cluster/topics.py`) - Groups papers by topic using KMeans clustering
 5. **Generate** (`generate/scripts.py`) - Creates podcast dialogue using OpenAI chat with two personas
-6. **TTS** (`tts/say_tts.py`) - Converts text to speech using macOS `say` command
+6. **TTS** (`tts/say_tts.py`) - Converts text to speech using Kokoro TTS with high-quality neural voices
 7. **Assemble** (`assembly/assemble.py`) - Combines audio segments into final MP3
 
 ### Configuration System
 - Settings managed via `paper_podcast/config.py` with environment variable overrides
 - Required: `OPENAI_API_KEY`
 - Key optional settings: `PP_FIELD`, `PP_MAX_PAPERS`, `PP_MIN_PER_SECTION`
-- Host personas configurable via `PP_HOST1_VOICE`/`PP_HOST2_VOICE` environment variables
+- Host personas configurable via `PP_HOST1_VOICE`/`PP_HOST2_VOICE` environment variables (Kokoro TTS voice names)
 
 ### Data Organization
 - **Input**: Papers stored in `data/papers/<run_id>/`
 - **Output**: Episodes in `data/episodes/<run_id>/` with MP3 and README
-- **Assets**: Shared resources in `data/assets/`
+- **Assets**: Shared resources in `data/assets/` including Kokoro TTS model files (~350MB)
 - Run IDs default to current date (YYYY-MM-DD format)
 
 ### CLI Structure
 Built with Typer, main commands mirror pipeline stages. Entry point via `scripts/paper-podcast` bash wrapper that activates venv and runs `python -m paper_podcast.cli`.
 
 ### Dependencies
-Python-only project with scientific computing stack (numpy, pandas, scikit-learn) plus OpenAI API, audio processing (pydub, ffmpeg-python), and web scraping (httpx, beautifulsoup4).
+Python-only project with scientific computing stack (numpy, pandas, scikit-learn) plus OpenAI API, audio processing (pydub, ffmpeg-python), Kokoro TTS for speech synthesis, and web scraping (httpx, beautifulsoup4).
+
+### TTS System
+- Uses **Kokoro TTS** for high-quality neural speech synthesis
+- Model files automatically downloaded to `data/assets/kokoro_models/` on first run
+- Supports multiple languages: English (US/UK), French, Italian, Japanese, Chinese
+- Default voices: `am_adam` (male) and `af_sarah` (female) for US English
+- Cross-platform compatibility (no longer requires macOS)

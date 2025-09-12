@@ -12,7 +12,7 @@ load_dotenv()
 @dataclass
 class HostPersona:
 	name: str
-	voice: str  # macOS "say" voice name, e.g., "Samantha", "Alex"
+	voice: str  # Kokoro TTS voice name, e.g., "af_sarah", "am_adam"
 	style: str  # short description of persona tone/style
 
 
@@ -37,8 +37,8 @@ class Settings:
 	# Generation
 	minutes_per_section: int = int(os.getenv("PP_MIN_PER_SECTION", "8"))
 
-	# TTS
-	use_macos_say: bool = os.getenv("PP_USE_SAY", "1") == "1"
+	# TTS (legacy setting kept for compatibility)
+	use_macos_say: bool = False  # Now using Kokoro TTS instead
 
 	# Personas
 	hosts: List[HostPersona] = None
@@ -48,12 +48,12 @@ class Settings:
 			self.hosts = [
 				HostPersona(
 					name="Alex",
-					voice=os.getenv("PP_HOST1_VOICE", "Alex"),
+					voice=os.getenv("PP_HOST1_VOICE", "am_adam"),
 					style="Curious, precise, likes mechanistic interpretations.",
 				),
 				HostPersona(
 					name="Samantha",
-					voice=os.getenv("PP_HOST2_VOICE", "Samantha"),
+					voice=os.getenv("PP_HOST2_VOICE", "af_sarah"),
 					style="Big-picture thinker, connects papers to broader trends.",
 				),
 			]
