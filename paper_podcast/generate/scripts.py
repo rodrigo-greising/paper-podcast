@@ -4,11 +4,21 @@ import json
 from pathlib import Path
 from typing import List
 
-from openai import OpenAI
+from ..observability.langfuse import get_openai_client
 
 from ..config import Settings
 from ..utils.logging import get_logger
 from ..utils.paths import run_dir, scripts_dir
+
+# Import observe decorator for Langfuse tracing
+try:
+    from langfuse import observe
+except ImportError:
+    # Fallback decorator if Langfuse not available
+    def observe():
+        def decorator(func):
+            return func
+        return decorator
 
 
 logger = get_logger(__name__)
@@ -82,6 +92,21 @@ def _build_prompt_for_cluster(cluster: dict, chunk_rows: List[dict], personas: s
 	return messages
 
 
+@observe(name="generate_cluster_script")
+def _generate_cluster_script(client, cluster: dict, rows: List[dict], personas: str, settings: Settings) -> str:
+	"""Generate script for a single cluster with Langfuse tracing."""
+	messages = _build_prompt_for_cluster(cluster, rows, personas, settings.minutes_per_section)
+	
+	resp = client.chat.completions.create(
+		model=settings.openai_chat_model,
+		messages=messages,
+		temperature=0.7,
+	)
+	
+	return resp.choices[0].message.content
+
+
+@observe(name="generate_podcast_scripts")
 def generate_run(settings: Settings, run_id: str) -> None:
 	if not settings.openai_api_key:
 		logger.warning("OPENAI_API_KEY not set; skipping generation.")
@@ -106,7 +131,8 @@ def generate_run(settings: Settings, run_id: str) -> None:
 		logger.warning("No data to generate scripts.")
 		return
 
-	client = OpenAI(api_key=settings.openai_api_key or None)
+	# Use Langfuse-instrumented OpenAI client when available
+	client = get_openai_client(api_key=settings.openai_api_key or None)
 	personas = _format_personas(settings)
 
 	for cluster in clusters:
@@ -114,13 +140,10 @@ def generate_run(settings: Settings, run_id: str) -> None:
 		rows = df[df["paper_id"].isin(paper_ids)].sort_values(["paper_id", "chunk_index"]).to_dict("records")
 		if not rows:
 			continue
-		messages = _build_prompt_for_cluster(cluster, rows, personas, settings.minutes_per_section)
-		resp = client.chat.completions.create(
-			model=settings.openai_chat_model,
-			messages=messages,
-			temperature=0.7,
-		)
-		text = resp.choices[0].message.content
+		
+		# Generate script for this cluster with tracing
+		text = _generate_cluster_script(client, cluster, rows, personas, settings)
+		
 		out = scripts_path / f"cluster_{cluster['cluster_id']:02d}.md"
 		out.write_text(text, encoding="utf-8")
 		logger.info(f"Wrote script {out}")

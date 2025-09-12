@@ -41,6 +41,16 @@ scripts/paper-podcast assemble
 - Embeddings use `text-embedding-3-small`. Swap in config via env.
 - Clustering uses KMeans with a simple k heuristic; can upgrade to HDBSCAN/BERTopic.
 - Generation uses OpenAI chat with two personas from `paper_podcast/config.py` (override via env voices).
+
+## Observability (Langfuse)
+
+- This project can auto-instrument OpenAI calls with Langfuse when available.
+- Install `langfuse` in your environment and set:
+  - `LANGFUSE_PUBLIC_KEY`
+  - `LANGFUSE_SECRET_KEY`
+  - `LANGFUSE_HOST` (optional; set to your local instance URL when self-hosting)
+- No code changes needed: the generator uses a Langfuse-aware OpenAI client shim in `paper_podcast/observability/langfuse.py`.
+- When `langfuse` is not installed or env vars are missing, it falls back to the vanilla OpenAI client.
 - TTS uses [Kokoro TTS](https://github.com/nazdridoy/kokoro-tts) with natural-sounding voices. Model files (~350MB) are downloaded to `data/assets/kokoro_models/` on first run.
 - Available voices: US English (am_adam, af_sarah, etc.), UK English, French, Italian, Japanese, Chinese.
 - Output episode MP3 and simple README are in `data/episodes/<run_id>/`.
