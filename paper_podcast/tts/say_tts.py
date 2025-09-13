@@ -75,7 +75,13 @@ def tts_run(settings: Settings, run_id: str) -> None:
 	total_duration_ms = 0
 	total_files = 0
 
-	for script_file in sorted(scripts_path.glob("cluster_*.md")):
+	# Handle both cluster scripts and deep dive scripts
+	script_patterns = ["cluster_*.md", "deep_dive_*.md"]
+	script_files = []
+	for pattern in script_patterns:
+		script_files.extend(scripts_path.glob(pattern))
+	
+	for script_file in sorted(script_files):
 		text = script_file.read_text(encoding="utf-8")
 		pairs = _parse_script_lines(text)
 		seg_dir = out_dir / script_file.stem

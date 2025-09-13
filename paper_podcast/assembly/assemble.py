@@ -42,11 +42,13 @@ def assemble_run(settings: Settings, run_id: str) -> None:
 	final_dir.mkdir(parents=True, exist_ok=True)
 
 	final = AudioSegment.silent(duration=1000)
-	cluster_dirs = sorted(audio_path.glob("cluster_*"))
-	logger.info(f"Processing {len(cluster_dirs)} cluster directories")
 	
-	for cluster_dir in cluster_dirs:
-		seg = _concat_segments(cluster_dir)
+	# Handle both cluster and deep dive audio directories
+	audio_dirs = sorted(audio_path.glob("cluster_*")) + sorted(audio_path.glob("deep_dive_*"))
+	logger.info(f"Processing {len(audio_dirs)} audio directories")
+	
+	for audio_dir_item in audio_dirs:
+		seg = _concat_segments(audio_dir_item)
 		final += seg
 
 	final_duration_seconds = len(final) / 1000

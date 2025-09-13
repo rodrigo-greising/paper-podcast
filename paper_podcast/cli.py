@@ -7,6 +7,9 @@ from rich import print
 
 from .config import get_settings
 from .utils.paths import run_dir
+from .utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 app = typer.Typer(help="Paper Podcast CLI")
 
@@ -115,6 +118,52 @@ def assemble(
 
 	assemble_run(settings, run_id)
 	print(f"[bold green]Assembly completed for run {run_id}")
+
+
+@app.command()
+def deep_dive(
+	arxiv_id: str = typer.Argument(help="arXiv paper ID (e.g., 2509.09610v1)"),
+	duration: Optional[int] = typer.Option(15, help="Target duration in minutes"),
+	output_run_id: Optional[str] = typer.Option(None, help="Output run ID (auto-generated if not provided)"),
+	generate_audio: bool = typer.Option(False, "--audio", help="Also generate audio (TTS + assembly)"),
+):
+	"""Generate a deep dive podcast episode for a specific paper."""
+	from .generate.deep_dive import deep_dive_paper
+	
+	settings = get_settings()
+	
+	try:
+		output_run_id = deep_dive_paper(
+			settings=settings,
+			arxiv_id=arxiv_id,
+			duration_minutes=duration,
+			output_run_id=output_run_id
+		)
+		
+		print(f"[bold green]Deep dive script generated for {arxiv_id}")
+		print(f"[bold blue]Output run ID: {output_run_id}")
+		
+		if generate_audio:
+			from .tts.say_tts import tts_run
+			from .assembly.assemble import assemble_run
+			
+			print("[bold yellow]Generating audio...")
+			tts_run(settings, output_run_id)
+			assemble_run(settings, output_run_id)
+			
+			out = Path(settings.data_dir) / "episodes" / output_run_id
+			print(f"[bold green]Deep dive episode completed. Audio in {out}")
+		else:
+			scripts_path = Path(settings.data_dir) / "runs" / output_run_id / "scripts"
+			print(f"[bold blue]Script saved in {scripts_path}")
+			
+	except ValueError as e:
+		print(f"[bold red]Error: {e}")
+		raise typer.Exit(1)
+	except Exception as e:
+		logger.error(f"Unexpected error in deep dive: {e}")
+		print(f"[bold red]Unexpected error: {e}")
+		raise typer.Exit(1)
 
 
 @app.command()
