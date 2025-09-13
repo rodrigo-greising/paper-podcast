@@ -48,7 +48,16 @@ This is a 7-stage podcast generation pipeline:
 - Required: `OPENAI_API_KEY`
 - Key optional settings: `PP_FIELD`, `PP_MAX_PAPERS`, `PP_MIN_PER_SECTION`
 - Host personas configurable via `PP_HOST1_VOICE`/`PP_HOST2_VOICE` environment variables (Kokoro TTS voice names)
-- Langfuse observability: Optional `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST` for OpenAI call tracing
+
+#### Langfuse Integration (Optional Observability)
+- **Purpose**: Automatically traces and monitors all OpenAI API calls for cost tracking, performance analysis, and debugging
+- **Setup**: Install `langfuse` package and set environment variables:
+  - `LANGFUSE_PUBLIC_KEY`: Your Langfuse project public key
+  - `LANGFUSE_SECRET_KEY`: Your Langfuse project secret key
+  - `LANGFUSE_HOST`: Langfuse instance URL (optional, defaults to Langfuse Cloud)
+- **Self-hosting**: For local Langfuse instances, set `LANGFUSE_HOST=http://localhost:3000`
+- **Fallback**: Automatically falls back to vanilla OpenAI client when Langfuse is unavailable
+- **Implementation**: See `paper_podcast/observability/langfuse.py` for the client wrapper
 
 ### Data Organization
 - **Input**: Papers stored in `data/papers/<run_id>/`

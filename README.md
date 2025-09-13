@@ -42,18 +42,48 @@ scripts/paper-podcast assemble
 - Clustering uses KMeans with a simple k heuristic; can upgrade to HDBSCAN/BERTopic.
 - Generation uses OpenAI chat with two personas from `paper_podcast/config.py` (override via env voices).
 
-## Observability (Langfuse)
+## Observability (Optional)
 
-- This project can auto-instrument OpenAI calls with Langfuse when available.
-- Install `langfuse` in your environment and set:
-  - `LANGFUSE_PUBLIC_KEY`
-  - `LANGFUSE_SECRET_KEY`
-  - `LANGFUSE_HOST` (optional; set to your local instance URL when self-hosting)
-- No code changes needed: the generator uses a Langfuse-aware OpenAI client shim in `paper_podcast/observability/langfuse.py`.
-- When `langfuse` is not installed or env vars are missing, it falls back to the vanilla OpenAI client.
+### Langfuse Integration
+Track and analyze all OpenAI API calls automatically:
+
+1. **Install Langfuse** (optional):
+```bash
+pip install langfuse
+```
+
+2. **Get API keys** from [Langfuse Cloud](https://cloud.langfuse.com) or your self-hosted instance
+
+3. **Set environment variables**:
+```bash
+export LANGFUSE_PUBLIC_KEY=pk-lf-...     # Your project public key
+export LANGFUSE_SECRET_KEY=sk-lf-...     # Your project secret key
+export LANGFUSE_HOST=https://cloud.langfuse.com  # Optional, defaults to Langfuse Cloud
+```
+
+4. **For self-hosted Langfuse**:
+```bash
+export LANGFUSE_HOST=http://localhost:3000  # Your local instance
+```
+
+**Features:**
+- Automatic tracing of all OpenAI API calls (embeddings + chat completions)
+- Cost tracking and performance metrics
+- No code changes required - uses instrumented client wrapper
+- Graceful fallback to standard OpenAI client when unavailable
+
+## TTS & Output
+
 - TTS uses [Kokoro TTS](https://github.com/nazdridoy/kokoro-tts) with natural-sounding voices. Model files (~350MB) are downloaded to `data/assets/kokoro_models/` on first run.
 - Available voices: US English (am_adam, af_sarah, etc.), UK English, French, Italian, Japanese, Chinese.
 - Output episode MP3 and simple README are in `data/episodes/<run_id>/`.
+
+## Security & Configuration
+
+- **API Keys**: Never commit API keys to the repository. Use environment variables only.
+- **Data Privacy**: The `data/` directory is excluded from git via `.gitignore`.
+- **Environment Files**: `.env` files are also excluded to prevent accidental commits of secrets.
+- **Optional Dependencies**: Langfuse is optional and gracefully degrades when unavailable.
 
 ## TTS Voice Options
 Kokoro TTS supports multiple high-quality voices. Set via environment variables:
