@@ -43,8 +43,14 @@ def assemble_run(settings: Settings, run_id: str) -> None:
 
 	final = AudioSegment.silent(duration=1000)
 	
-	# Handle both cluster and deep dive audio directories
-	audio_dirs = sorted(audio_path.glob("cluster_*")) + sorted(audio_path.glob("deep_dive_*"))
+	# Handle cluster, deep dive, and edited episode audio directories
+	audio_dirs = []
+	for pattern in ["cluster_*", "deep_dive_*"]:
+		audio_dirs.extend(sorted(audio_path.glob(pattern)))
+	# Include single edited episode directory if present
+	edited_dir = audio_path / "edited_episode"
+	if edited_dir.exists():
+		audio_dirs.append(edited_dir)
 	logger.info(f"Processing {len(audio_dirs)} audio directories")
 	
 	for audio_dir_item in audio_dirs:

@@ -13,6 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   scripts/paper-podcast embed
   scripts/paper-podcast cluster
   scripts/paper-podcast generate
+  scripts/paper-podcast edit      # NEW: Improve flow and coherence
   scripts/paper-podcast tts
   scripts/paper-podcast assemble
   ```
@@ -33,15 +34,16 @@ pip install -r requirements.txt
 ## Architecture
 
 ### Pipeline Stages
-This is a 7-stage podcast generation pipeline:
+This is an 8-stage podcast generation pipeline:
 
 1. **Ingest** (`ingest/arxiv_ingest.py`) - Fetches arXiv papers by field (default: cs.AI)
 2. **Extract** (`extract/ar5iv_extract.py`) - Processes papers via ar5iv HTML, extracts text and figures
 3. **Embed** (`embed/embeddings.py`) - Creates embeddings using OpenAI's text-embedding-3-small
 4. **Cluster** (`cluster/topics.py`) - Groups papers by topic using UMAP dimensionality reduction and HDBSCAN clustering (with KMeans fallback)
 5. **Generate** (`generate/scripts.py`) - Creates podcast dialogue using OpenAI chat with two personas
-6. **TTS** (`tts/say_tts.py`) - Converts text to speech using Kokoro TTS with high-quality neural voices
-7. **Assemble** (`assembly/assemble.py`) - Combines audio segments into final MP3
+6. **Edit** (`generate/edit.py`) - **NEW**: Transforms independent cluster scripts into a cohesive episode with intro, transitions, and thematic connections
+7. **TTS** (`tts/say_tts.py`) - Converts text to speech using Kokoro TTS with high-quality neural voices (uses edited script when available)
+8. **Assemble** (`assembly/assemble.py`) - Combines audio segments into final MP3
 
 ### Configuration System
 - Settings managed via `paper_podcast/config.py` with environment variable overrides

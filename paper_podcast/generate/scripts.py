@@ -97,11 +97,17 @@ def _generate_cluster_script(client, cluster: dict, rows: List[dict], personas: 
 	"""Generate script for a single cluster with Langfuse tracing."""
 	messages = _build_prompt_for_cluster(cluster, rows, personas, settings.minutes_per_section)
 	
-	resp = client.chat.completions.create(
-		model=settings.openai_chat_model,
-		messages=messages,
-		temperature=0.7,
-	)
+	# Check if model supports custom temperature
+	chat_params = {
+		"model": settings.openai_chat_model,
+		"messages": messages,
+	}
+
+	# Only add temperature for models that support it
+	if not settings.openai_chat_model.startswith("gpt-5"):
+		chat_params["temperature"] = 0.7
+
+	resp = client.chat.completions.create(**chat_params)
 	
 	return resp.choices[0].message.content
 

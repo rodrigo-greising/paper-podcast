@@ -93,6 +93,20 @@ def generate(
 
 
 @app.command()
+def edit(
+	run_id: Optional[str] = typer.Option(None, help="Run identifier (YYYY-MM-DD)"),
+):
+	from .generate.edit import edit_run
+
+	settings = get_settings()
+	if not run_id:
+		run_id = date.today().isoformat()
+
+	edit_run(settings, run_id)
+	print(f"[bold green]Script editing completed for run {run_id}")
+
+
+@app.command()
 def tts(
 	run_id: Optional[str] = typer.Option(None, help="Run identifier (YYYY-MM-DD)"),
 ):
@@ -187,6 +201,7 @@ def run(
 	from .embed.embeddings import embed_run
 	from .cluster.topics import cluster_run
 	from .generate.scripts import generate_run
+	from .generate.edit import edit_run
 	from .tts.say_tts import tts_run
 	from .assembly.assemble import assemble_run
 
@@ -195,6 +210,7 @@ def run(
 	embed_run(settings, run_id)
 	cluster_run(settings, run_id)
 	generate_run(settings, run_id)
+	edit_run(settings, run_id)
 	tts_run(settings, run_id)
 	assemble_run(settings, run_id)
 

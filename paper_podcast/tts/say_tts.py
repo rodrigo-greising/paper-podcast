@@ -16,7 +16,8 @@ from ..utils.paths import run_dir, audio_dir
 logger = get_logger(__name__)
 
 
-LINE_RE = re.compile(r"^\*\*(?P<speaker>[A-Za-z][A-Za-z0-9_ ]+):?\*\*:?\s*(?P<text>.+)$")
+# Support both **Speaker**: and Speaker: formats
+LINE_RE = re.compile(r"^(?:\*\*(?P<speaker1>[A-Za-z][A-Za-z0-9_ ]+):?\*\*:?\s*|(?P<speaker2>[A-Za-z][A-Za-z0-9_ ]+):\s*)(?P<text>.+)$")
 
 
 def _parse_script_lines(text: str) -> List[Tuple[str, str]]:
@@ -25,7 +26,9 @@ def _parse_script_lines(text: str) -> List[Tuple[str, str]]:
 		m = LINE_RE.match(raw.strip())
 		if not m:
 			continue
-		lines.append((m.group("speaker"), m.group("text")))
+		# Extract speaker from either speaker1 or speaker2 group
+		speaker = m.group("speaker1") or m.group("speaker2")
+		lines.append((speaker, m.group("text")))
 	return lines
 
 
@@ -75,11 +78,17 @@ def tts_run(settings: Settings, run_id: str) -> None:
 	total_duration_ms = 0
 	total_files = 0
 
-	# Handle both cluster scripts and deep dive scripts
-	script_patterns = ["cluster_*.md", "deep_dive_*.md"]
-	script_files = []
-	for pattern in script_patterns:
-		script_files.extend(scripts_path.glob(pattern))
+	# Check if we have an edited episode script to use instead of individual clusters
+	edited_script = scripts_path / "edited_episode.md"
+	if edited_script.exists():
+		logger.info("Found edited episode script, using it instead of individual cluster scripts")
+		script_files = [edited_script]
+	else:
+		# Handle both cluster scripts and deep dive scripts
+		script_patterns = ["cluster_*.md", "deep_dive_*.md"]
+		script_files = []
+		for pattern in script_patterns:
+			script_files.extend(scripts_path.glob(pattern))
 	
 	for script_file in sorted(script_files):
 		text = script_file.read_text(encoding="utf-8")
