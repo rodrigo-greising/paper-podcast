@@ -51,32 +51,53 @@ def _evaluate_clustering(X: np.ndarray, labels: np.ndarray) -> dict:
 	}
 
 
-def _cluster_hdbscan(X: np.ndarray, min_cluster_size: int = None) -> tuple[np.ndarray, dict]:
-	"""Modern clustering using UMAP + HDBSCAN."""
+def _cluster_hdbscan(X: np.ndarray, min_cluster_size: int = None, is_large_dataset: bool = False) -> tuple[np.ndarray, dict]:
+	"""Modern clustering using UMAP + HDBSCAN with optimizations for large datasets."""
 	n_samples = X.shape[0]
 	
 	# Adaptive parameters based on dataset size
 	if min_cluster_size is None:
-		min_cluster_size = max(2, n_samples // 20)
+		if is_large_dataset:
+			# For large datasets (thousands of papers), create more meaningful topic clusters
+			min_cluster_size = max(10, n_samples // 50)  # Smaller clusters for better topic separation
+		else:
+			min_cluster_size = max(2, n_samples // 20)
 	
-	n_components = min(10, n_samples // 2) if n_samples > 20 else 2
-	n_neighbors = min(30, n_samples // 3) if n_samples > 30 else min(15, n_samples - 1)
+	# Optimize UMAP parameters for large datasets
+	if is_large_dataset:
+		n_components = min(15, n_samples // 10) if n_samples > 100 else min(10, n_samples // 2)
+		n_neighbors = min(50, n_samples // 5) if n_samples > 100 else min(30, n_samples // 3)
+		min_dist = 0.1  # Slightly looser for better separation of distinct topics
+	else:
+		n_components = min(10, n_samples // 2) if n_samples > 20 else 2
+		n_neighbors = min(30, n_samples // 3) if n_samples > 30 else min(15, n_samples - 1)
+		min_dist = 0.0
 	
 	# Apply UMAP for dimensionality reduction
 	reducer = UMAP(
 		n_components=n_components,
 		n_neighbors=n_neighbors,
-		min_dist=0.0,  # Tight clusters for clustering (not visualization)
-		random_state=42
+		min_dist=min_dist,
+		random_state=42,
+		verbose=is_large_dataset  # Enable verbose logging for large datasets
 	)
 	X_reduced = reducer.fit_transform(X)
 	
-	# Apply HDBSCAN clustering
-	clusterer = HDBSCAN(
-		min_cluster_size=min_cluster_size,
-		min_samples=1,
-		metric='euclidean'
-	)
+	# Apply HDBSCAN clustering with optimized parameters for large datasets
+	if is_large_dataset:
+		clusterer = HDBSCAN(
+			min_cluster_size=min_cluster_size,
+			min_samples=max(2, min_cluster_size // 3),  # Require more samples for stability
+			metric='euclidean',
+			cluster_selection_epsilon=0.1  # Allow some flexibility in cluster boundaries
+		)
+	else:
+		clusterer = HDBSCAN(
+			min_cluster_size=min_cluster_size,
+			min_samples=1,
+			metric='euclidean'
+		)
+	
 	labels = clusterer.fit_predict(X_reduced)
 	
 	# Evaluate clustering quality
@@ -117,8 +138,11 @@ def cluster_run(settings: Settings, run_id: str) -> None:
 
 	X = np.vstack(df["embedding"].tolist())
 	
+	# Detect if this is a large dataset (monthly run with thousands of papers)
+	is_large_dataset = len(texts) > 1000
+	
 	# Try modern HDBSCAN clustering first
-	labels, metrics = _cluster_hdbscan(X)
+	labels, metrics = _cluster_hdbscan(X, is_large_dataset=is_large_dataset)
 	
 	# Fallback to KMeans if HDBSCAN produces too few clusters or too much noise
 	if metrics.get('n_clusters', 0) < 2 or metrics.get('noise_ratio', 0) > 0.5:

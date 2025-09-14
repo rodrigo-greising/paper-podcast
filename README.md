@@ -25,6 +25,13 @@ export PP_HOST2_VOICE=af_sarah  # optional, Kokoro TTS voice for host 2
 ```bash
 scripts/paper-podcast run --limit 25
 ```
+
+**NEW: Monthly Topic-Based Podcasts**
+Generate comprehensive monthly reviews with separate podcasts for each major topic:
+```bash
+scripts/paper-podcast monthly --field cs.AI --year 2024 --month 9
+```
+
 Or stage-by-stage:
 ```bash
 scripts/paper-podcast ingest --limit 25
@@ -39,8 +46,9 @@ scripts/paper-podcast assemble
 ## Notes
 - Extraction uses ar5iv HTML when available. Figures are kept as HTML in `figures.json` for now.
 - Embeddings use `text-embedding-3-small`. Swap in config via env.
-- Clustering uses KMeans with a simple k heuristic; can upgrade to HDBSCAN/BERTopic.
+- Clustering uses HDBSCAN with UMAP dimensionality reduction, falls back to KMeans for smaller datasets.
 - Generation uses OpenAI chat with two personas from `paper_podcast/config.py` (override via env voices).
+- **Monthly mode**: Fetches ALL papers for a month (thousands), creates topic-based clusters, generates separate podcasts per topic.
 
 ## Observability (Optional)
 

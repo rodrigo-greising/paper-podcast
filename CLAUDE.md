@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Running the Application
 - **Full pipeline**: `scripts/paper-podcast run --limit 25`
+- **Monthly topic-based podcasts**: `scripts/paper-podcast monthly --field cs.AI --year 2024 --month 9`
+- **Generate from existing monthly data**: `scripts/paper-podcast monthly-generate --year 2024 --month 9`
 - **Step-by-step execution**:
   ```bash
   scripts/paper-podcast ingest --limit 25
@@ -34,9 +36,10 @@ pip install -r requirements.txt
 ## Architecture
 
 ### Pipeline Stages
-This is an 8-stage podcast generation pipeline:
+This is an 8-stage podcast generation pipeline with two modes:
 
-1. **Ingest** (`ingest/arxiv_ingest.py`) - Fetches arXiv papers by field (default: cs.AI)
+**Daily Mode** (original):
+1. **Ingest** (`ingest/arxiv_ingest.py`) - Fetches arXiv papers by field (default: cs.AI) with limit
 2. **Extract** (`extract/ar5iv_extract.py`) - Processes papers via ar5iv HTML, extracts text and figures
 3. **Embed** (`embed/embeddings.py`) - Creates embeddings using OpenAI's text-embedding-3-small
 4. **Cluster** (`cluster/topics.py`) - Groups papers by topic using UMAP dimensionality reduction and HDBSCAN clustering (with KMeans fallback)
@@ -44,6 +47,21 @@ This is an 8-stage podcast generation pipeline:
 6. **Edit** (`generate/edit.py`) - **NEW**: Transforms independent cluster scripts into a cohesive episode with intro, transitions, and thematic connections
 7. **TTS** (`tts/say_tts.py`) - Converts text to speech using Kokoro TTS with high-quality neural voices (uses edited script when available)
 8. **Assemble** (`assembly/assemble.py`) - Combines audio segments into final MP3
+
+**Monthly Mode** (NEW):
+1. **Monthly Ingest** (`ingest/arxiv_ingest.py`) - Fetches ALL papers for a specific month and category (thousands of papers)
+2. **Extract** (`extract/ar5iv_extract.py`) - Processes papers via ar5iv HTML, extracts text and figures
+3. **Embed** (`embed/embeddings.py`) - Creates embeddings using OpenAI's text-embedding-3-small
+4. **Enhanced Cluster** (`cluster/topics.py`) - Groups papers by topic with optimizations for large datasets
+5. **Monthly Generate** (`generate/monthly_topics.py`) - Creates separate podcast scripts for each major topic cluster
+6. **Monthly TTS** (`generate/monthly_topics.py`) - Generates TTS audio for each topic separately
+7. **Monthly Assemble** (`generate/monthly_topics.py`) - Assembles separate MP3 files for each topic
+
+**Monthly Generate Command** (Skip data fetching):
+- Use `monthly-generate` when you already have papers, embeddings, and clusters
+- Automatically creates subclusters (max 30 papers each) for large topic clusters
+- Generates comprehensive technical scripts without content truncation
+- Options: `--no-audio` to skip TTS/assembly, `--year`/`--month` to specify date
 
 ### Configuration System
 - Settings managed via `paper_podcast/config.py` with environment variable overrides

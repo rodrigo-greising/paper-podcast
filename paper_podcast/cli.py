@@ -218,5 +218,151 @@ def run(
 	print(f"[bold green]Run completed. Episode in {out}")
 
 
+@app.command()
+def monthly_generate(
+	year: Optional[int] = typer.Option(None, help="Year (e.g., 2024)"),
+	month: Optional[int] = typer.Option(None, help="Month (1-12)"),
+	generate_audio: bool = typer.Option(True, "--audio/--no-audio", help="Generate audio (TTS + assembly)"),
+):
+	"""Generate monthly topic scripts from existing papers (skip ingestion/extraction/embedding/clustering)."""
+	from datetime import datetime
+
+	settings = get_settings()
+
+	# Default to current month if not specified
+	if not year or not month:
+		now = datetime.now()
+		year = year or now.year
+		month = month or now.month
+
+	month_id = f"{year}-{month:02d}"
+
+	print(f"[bold blue]Generating monthly topic scripts for {year}-{month:02d}")
+	print(f"[bold yellow]Using existing papers, embeddings, and clusters...")
+
+	from .generate.monthly_topics import generate_monthly_topics, generate_monthly_topic_audio, assemble_monthly_topics
+	from pathlib import Path
+
+	# Check if required data exists
+	run_path = Path(settings.data_dir) / "runs" / month_id
+	vectors_path = run_path / "vectors.parquet"
+	clusters_path = run_path / "clusters.json"
+
+	if not vectors_path.exists():
+		print(f"[bold red]Error: Missing vectors.parquet in {run_path}")
+		print(f"[bold red]Run the full pipeline first: scripts/paper-podcast monthly --year {year} --month {month}")
+		raise typer.Exit(1)
+
+	if not clusters_path.exists():
+		print(f"[bold red]Error: Missing clusters.json in {run_path}")
+		print(f"[bold red]Run the full pipeline first: scripts/paper-podcast monthly --year {year} --month {month}")
+		raise typer.Exit(1)
+
+	# Step 1: Generate topic-based scripts
+	print(f"[bold green]Step 1: Generating monthly topic scripts...")
+	generate_monthly_topics(settings, year, month)
+
+	if generate_audio:
+		# Step 2: Generate TTS audio
+		print(f"[bold green]Step 2: Generating TTS audio...")
+		generate_monthly_topic_audio(settings, year, month)
+
+		# Step 3: Assemble final podcasts
+		print(f"[bold green]Step 3: Assembling final podcasts...")
+		assemble_monthly_topics(settings, year, month)
+
+	# Show results
+	monthly_topics_dir = Path(settings.data_dir) / "episodes" / "monthly_topics" / month_id
+	if monthly_topics_dir.exists():
+		topic_podcasts = list(monthly_topics_dir.glob("*.mp3"))
+		print(f"[bold green]Monthly podcasts completed!")
+		print(f"[bold blue]Generated {len(topic_podcasts)} topic-based podcasts in {monthly_topics_dir}")
+		for podcast in topic_podcasts:
+			print(f"[bold cyan]  - {podcast.name}")
+	else:
+		scripts_dir = Path(settings.data_dir) / "runs" / month_id / "scripts"
+		topic_scripts = list(scripts_dir.glob("monthly_topic_*.md"))
+		print(f"[bold green]Monthly topic scripts completed!")
+		print(f"[bold blue]Generated {len(topic_scripts)} topic scripts in {scripts_dir}")
+		print(f"[bold yellow]Run with --audio to generate the final podcasts")
+
+
+@app.command()
+def monthly(
+	field: Optional[str] = typer.Option(None, help="arXiv field, e.g., cs.AI"),
+	year: Optional[int] = typer.Option(None, help="Year (e.g., 2024)"),
+	month: Optional[int] = typer.Option(None, help="Month (1-12)"),
+	generate_audio: bool = typer.Option(True, "--audio/--no-audio", help="Generate audio (TTS + assembly)"),
+):
+	"""Generate monthly topic-based podcasts from all papers in a category for a specific month."""
+	from datetime import datetime
+	
+	settings = get_settings()
+	if field:
+		settings.field_category = field
+	
+	# Default to current month if not specified
+	if not year or not month:
+		now = datetime.now()
+		year = year or now.year
+		month = month or now.month
+	
+	month_id = f"{year}-{month:02d}"
+	
+	print(f"[bold blue]Generating monthly podcasts for {settings.field_category} - {year}-{month:02d}")
+	print(f"[bold yellow]This will fetch ALL papers for the month (potentially thousands)...")
+	
+	from .ingest.arxiv_ingest import ingest_arxiv_monthly
+	from .extract.ar5iv_extract import extract_run
+	from .embed.embeddings import embed_run
+	from .cluster.topics import cluster_run
+	from .generate.monthly_topics import generate_monthly_topics, generate_monthly_topic_audio, assemble_monthly_topics
+	
+	# Step 1: Ingest all papers for the month
+	print(f"[bold green]Step 1: Fetching all papers for {year}-{month:02d}...")
+	paper_count = ingest_arxiv_monthly(settings, year, month)
+	print(f"[bold green]Fetched {paper_count} papers")
+	
+	# Step 2: Extract content from papers
+	print(f"[bold green]Step 2: Extracting content from papers...")
+	extract_run(settings, month_id)
+	
+	# Step 3: Generate embeddings
+	print(f"[bold green]Step 3: Generating embeddings...")
+	embed_run(settings, month_id)
+	
+	# Step 4: Cluster papers into topics
+	print(f"[bold green]Step 4: Clustering papers into topics...")
+	cluster_run(settings, month_id)
+	
+	# Step 5: Generate topic-based scripts
+	print(f"[bold green]Step 5: Generating monthly topic scripts...")
+	generate_monthly_topics(settings, year, month)
+	
+	if generate_audio:
+		# Step 6: Generate TTS audio
+		print(f"[bold green]Step 6: Generating TTS audio...")
+		generate_monthly_topic_audio(settings, year, month)
+		
+		# Step 7: Assemble final podcasts
+		print(f"[bold green]Step 7: Assembling final podcasts...")
+		assemble_monthly_topics(settings, year, month)
+	
+	# Show results
+	monthly_topics_dir = Path(settings.data_dir) / "episodes" / "monthly_topics" / month_id
+	if monthly_topics_dir.exists():
+		topic_podcasts = list(monthly_topics_dir.glob("*.mp3"))
+		print(f"[bold green]Monthly podcasts completed!")
+		print(f"[bold blue]Generated {len(topic_podcasts)} topic-based podcasts in {monthly_topics_dir}")
+		for podcast in topic_podcasts:
+			print(f"[bold cyan]  - {podcast.name}")
+	else:
+		scripts_dir = Path(settings.data_dir) / "runs" / month_id / "scripts"
+		topic_scripts = list(scripts_dir.glob("monthly_topic_*.md"))
+		print(f"[bold green]Monthly topic scripts completed!")
+		print(f"[bold blue]Generated {len(topic_scripts)} topic scripts in {scripts_dir}")
+		print(f"[bold yellow]Run with --audio to generate the final podcasts")
+
+
 if __name__ == "__main__":
 	app()
