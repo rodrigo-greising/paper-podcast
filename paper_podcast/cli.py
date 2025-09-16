@@ -223,11 +223,27 @@ def monthly_generate(
 	year: Optional[int] = typer.Option(None, help="Year (e.g., 2024)"),
 	month: Optional[int] = typer.Option(None, help="Month (1-12)"),
 	generate_audio: bool = typer.Option(True, "--audio/--no-audio", help="Generate audio (TTS + assembly)"),
+	accessibility_levels: Optional[str] = typer.Option("1,2,3,4,5", help="Comma-separated accessibility levels (1-5)"),
 ):
 	"""Generate monthly topic scripts from existing papers (skip ingestion/extraction/embedding/clustering)."""
 	from datetime import datetime
 
 	settings = get_settings()
+
+	# Parse accessibility levels
+	if accessibility_levels:
+		try:
+			levels = [int(x.strip()) for x in accessibility_levels.split(",")]
+			# Validate levels
+			for level in levels:
+				if level not in [1, 2, 3, 4, 5]:
+					print(f"[bold red]Error: Invalid accessibility level {level}. Must be 1-5.")
+					raise typer.Exit(1)
+		except ValueError:
+			print(f"[bold red]Error: Invalid accessibility levels format. Use comma-separated numbers (e.g., '1,2,3').")
+			raise typer.Exit(1)
+	else:
+		levels = [1, 2, 3, 4, 5]
 
 	# Default to current month if not specified
 	if not year or not month:
@@ -238,6 +254,7 @@ def monthly_generate(
 	month_id = f"{year}-{month:02d}"
 
 	print(f"[bold blue]Generating monthly topic scripts for {year}-{month:02d}")
+	print(f"[bold yellow]Accessibility levels: {levels}")
 	print(f"[bold yellow]Using existing papers, embeddings, and clusters...")
 
 	from .generate.monthly_topics import generate_monthly_topics, generate_monthly_topic_audio, assemble_monthly_topics
@@ -260,25 +277,31 @@ def monthly_generate(
 
 	# Step 1: Generate topic-based scripts
 	print(f"[bold green]Step 1: Generating monthly topic scripts...")
-	generate_monthly_topics(settings, year, month)
+	generate_monthly_topics(settings, year, month, levels)
 
 	if generate_audio:
 		# Step 2: Generate TTS audio
 		print(f"[bold green]Step 2: Generating TTS audio...")
-		generate_monthly_topic_audio(settings, year, month)
+		generate_monthly_topic_audio(settings, year, month, levels)
 
 		# Step 3: Assemble final podcasts
 		print(f"[bold green]Step 3: Assembling final podcasts...")
-		assemble_monthly_topics(settings, year, month)
+		assemble_monthly_topics(settings, year, month, levels)
 
 	# Show results
 	monthly_topics_dir = Path(settings.data_dir) / "episodes" / "monthly_topics" / month_id
 	if monthly_topics_dir.exists():
-		topic_podcasts = list(monthly_topics_dir.glob("*.mp3"))
+		total_podcasts = 0
+		for level in levels:
+			from .generate.accessibility_levels import get_accessibility_level
+			level_config = get_accessibility_level(level)
+			level_dir = monthly_topics_dir / level_config.name.lower()
+			if level_dir.exists():
+				podcasts = list(level_dir.glob("*.mp3"))
+				total_podcasts += len(podcasts)
+				print(f"[bold cyan]Level {level} ({level_config.name}): {len(podcasts)} podcasts in {level_dir}")
 		print(f"[bold green]Monthly podcasts completed!")
-		print(f"[bold blue]Generated {len(topic_podcasts)} topic-based podcasts in {monthly_topics_dir}")
-		for podcast in topic_podcasts:
-			print(f"[bold cyan]  - {podcast.name}")
+		print(f"[bold blue]Generated {total_podcasts} total topic-based podcasts across {len(levels)} accessibility levels")
 	else:
 		scripts_dir = Path(settings.data_dir) / "runs" / month_id / "scripts"
 		topic_scripts = list(scripts_dir.glob("monthly_topic_*.md"))
@@ -293,23 +316,40 @@ def monthly(
 	year: Optional[int] = typer.Option(None, help="Year (e.g., 2024)"),
 	month: Optional[int] = typer.Option(None, help="Month (1-12)"),
 	generate_audio: bool = typer.Option(True, "--audio/--no-audio", help="Generate audio (TTS + assembly)"),
+	accessibility_levels: Optional[str] = typer.Option("1,2,3,4,5", help="Comma-separated accessibility levels (1-5)"),
 ):
 	"""Generate monthly topic-based podcasts from all papers in a category for a specific month."""
 	from datetime import datetime
-	
+
 	settings = get_settings()
 	if field:
 		settings.field_category = field
-	
+
+	# Parse accessibility levels
+	if accessibility_levels:
+		try:
+			levels = [int(x.strip()) for x in accessibility_levels.split(",")]
+			# Validate levels
+			for level in levels:
+				if level not in [1, 2, 3, 4, 5]:
+					print(f"[bold red]Error: Invalid accessibility level {level}. Must be 1-5.")
+					raise typer.Exit(1)
+		except ValueError:
+			print(f"[bold red]Error: Invalid accessibility levels format. Use comma-separated numbers (e.g., '1,2,3').")
+			raise typer.Exit(1)
+	else:
+		levels = [1, 2, 3, 4, 5]
+
 	# Default to current month if not specified
 	if not year or not month:
 		now = datetime.now()
 		year = year or now.year
 		month = month or now.month
-	
+
 	month_id = f"{year}-{month:02d}"
-	
+
 	print(f"[bold blue]Generating monthly podcasts for {settings.field_category} - {year}-{month:02d}")
+	print(f"[bold yellow]Accessibility levels: {levels}")
 	print(f"[bold yellow]This will fetch ALL papers for the month (potentially thousands)...")
 	
 	from .ingest.arxiv_ingest import ingest_arxiv_monthly
@@ -337,25 +377,31 @@ def monthly(
 	
 	# Step 5: Generate topic-based scripts
 	print(f"[bold green]Step 5: Generating monthly topic scripts...")
-	generate_monthly_topics(settings, year, month)
-	
+	generate_monthly_topics(settings, year, month, levels)
+
 	if generate_audio:
 		# Step 6: Generate TTS audio
 		print(f"[bold green]Step 6: Generating TTS audio...")
-		generate_monthly_topic_audio(settings, year, month)
-		
+		generate_monthly_topic_audio(settings, year, month, levels)
+
 		# Step 7: Assemble final podcasts
 		print(f"[bold green]Step 7: Assembling final podcasts...")
-		assemble_monthly_topics(settings, year, month)
+		assemble_monthly_topics(settings, year, month, levels)
 	
 	# Show results
 	monthly_topics_dir = Path(settings.data_dir) / "episodes" / "monthly_topics" / month_id
 	if monthly_topics_dir.exists():
-		topic_podcasts = list(monthly_topics_dir.glob("*.mp3"))
+		total_podcasts = 0
+		for level in levels:
+			from .generate.accessibility_levels import get_accessibility_level
+			level_config = get_accessibility_level(level)
+			level_dir = monthly_topics_dir / level_config.name.lower()
+			if level_dir.exists():
+				podcasts = list(level_dir.glob("*.mp3"))
+				total_podcasts += len(podcasts)
+				print(f"[bold cyan]Level {level} ({level_config.name}): {len(podcasts)} podcasts in {level_dir}")
 		print(f"[bold green]Monthly podcasts completed!")
-		print(f"[bold blue]Generated {len(topic_podcasts)} topic-based podcasts in {monthly_topics_dir}")
-		for podcast in topic_podcasts:
-			print(f"[bold cyan]  - {podcast.name}")
+		print(f"[bold blue]Generated {total_podcasts} total topic-based podcasts across {len(levels)} accessibility levels")
 	else:
 		scripts_dir = Path(settings.data_dir) / "runs" / month_id / "scripts"
 		topic_scripts = list(scripts_dir.glob("monthly_topic_*.md"))

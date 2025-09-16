@@ -8,6 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Full pipeline**: `scripts/paper-podcast run --limit 25`
 - **Monthly topic-based podcasts**: `scripts/paper-podcast monthly --field cs.AI --year 2024 --month 9`
 - **Generate from existing monthly data**: `scripts/paper-podcast monthly-generate --year 2024 --month 9`
+- **Accessibility levels**: Add `--accessibility-levels "1,3,5"` to generate specific expertise levels (1=Expert, 2=ML Expert, 3=Developer, 4=Technical, 5=Layman)
 - **Step-by-step execution**:
   ```bash
   scripts/paper-podcast ingest --limit 25
@@ -61,7 +62,17 @@ This is an 8-stage podcast generation pipeline with two modes:
 - Use `monthly-generate` when you already have papers, embeddings, and clusters
 - Automatically creates subclusters (max 30 papers each) for large topic clusters
 - Generates comprehensive technical scripts without content truncation
-- Options: `--no-audio` to skip TTS/assembly, `--year`/`--month` to specify date
+- Options: `--no-audio` to skip TTS/assembly, `--year`/`--month` to specify date, `--accessibility-levels` to specify target audience levels
+
+**Accessibility Levels System** (NEW):
+Five accessibility levels for different audience expertise:
+1. **Expert** (Level 1): Deep technical analysis for AI/ML researchers and domain experts
+2. **ML Expert** (Level 2): Technical discussion for ML engineers and data scientists
+3. **Developer** (Level 3): Technical overview for software engineers with programming background
+4. **Technical** (Level 4): High-level discussion for STEM professionals
+5. **Layman** (Level 5): General audience explanation with minimal technical jargon
+
+Output organized by level: `data/episodes/monthly_topics/<month>/expert/`, `data/episodes/monthly_topics/<month>/layman/`, etc.
 
 ### Configuration System
 - Settings managed via `paper_podcast/config.py` with environment variable overrides
